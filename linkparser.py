@@ -5,8 +5,9 @@ import urllib.parse
 import db
 import re
 import zlib
-import sys
 import array
+import socket
+
 class filter():
     def __init__(self):
         self.dict = {}
@@ -57,9 +58,22 @@ class page():
 
             e = k.decode('ascii')
             #print('eeeeee',e)
-            self.f = urllib.request.urlopen(e,None,timeout=20) # open url
-            self.length = self.f.length
-            self.pageBytes = self.f.read()
+            try:
+                self.f = urllib.request.urlopen(e,None,timeout=1) # open url
+                self.length = self.f.length
+            except socket.timeout:
+                print('-------------+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++hahaha, still alive 3')
+                return -1
+            except urllib.error.URLError:
+                print('-------------+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++hahaha, still alive 2')
+                return -1
+
+
+            try:
+                self.pageBytes = self.f.read()
+            except socket.timeout:
+                print('-------------+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++hahaha, still alive')
+                return -1
             #print(self.f.headers.get_content_length())
             return 0
         else:

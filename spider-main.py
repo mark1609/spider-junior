@@ -6,17 +6,17 @@ from linkparser import *
 import random
 import db
 
-depth = 3
-thrNum = 3
-maxRetry = 10
+depth = 10
+thrNum = 10
+maxRetry = 30
 #seedUrl = 'http://www.k51.cn/'
 ignoreSiteList = ('safedog',)
-keyObj = ('欧美','喜剧','公积金')
+keyObj = ('欧美','喜剧','冰冰','周迅')
 
 url0 = 'http://sale.jd.com/act/4VRdmG362EbLpIx.html'
 url1 = 'http://www.k51.cn/'
 seedUrl = 'http://www.sina.com.cn/'
-url3 = 'http://news.baidu.cooom/'
+#seedUrl = 'http://news.baidu.com/'
 #seedUrl = 'http://news.sina.com.cn/'
 
 taskQue = Queue()
