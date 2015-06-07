@@ -7,6 +7,7 @@ import re
 import zlib
 import array
 import socket
+import log
 
 class filter():
     def __init__(self):
@@ -29,7 +30,7 @@ class page():
             print('---------------open url:', url)
             #print(type(url),url.encode('gbk'))
             #print(urllib.parse.quote("公积金信息披露",encoding='GBK') )
-            d = url.encode('gbk') # procedure below for shitty url like this: "http://tags.news.sina.com.cn/公积金"
+            d = url.encode('gbk', 'ignore') # procedure below for shitty url like this: "http://tags.news.sina.com.cn/公积金"
             a = array.array('b')
             #a.frombytes(d)
             #print(a)
@@ -56,28 +57,30 @@ class page():
             k = a.tobytes()
             #print(k)
 
-            e = k.decode('ascii')
+            e = k.decode('gbk')
             #print('eeeeee',e)
             try:
                 self.f = urllib.request.urlopen(e,None,timeout=1) # open url
                 self.length = self.f.length
             except socket.timeout:
-                print('-------------+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++hahaha, still alive 3')
+                log.log.log(5, 'socket timeout on open')
                 return -1
             except urllib.error.URLError:
-                print('-------------+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++hahaha, still alive 2')
+                log.log.log(5, 'url error')
                 return -1
-
+            except ConnectionResetError:
+                log.log.log(5, 'connection reset')
+                return -1
 
             try:
                 self.pageBytes = self.f.read()
             except socket.timeout:
-                print('-------------+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++hahaha, still alive')
+                log.log.log(5, 'socket timeout on read')
                 return -1
             #print(self.f.headers.get_content_length())
             return 0
         else:
-            print('unknow url scheme')
+            log.log.log(5, 'unknown url scheme')
             return -1
 
     def getCharset(self):
@@ -90,7 +93,7 @@ class page():
         #print('hdrstr', hdrStr)
 
         if hdrStr.find('gzip') != -1: # page been compressed
-            print('decompress gzip data')
+            log.log.log(2, 'decompress gzip data')
             self.pageBytes = zlib.decompress(self.pageBytes, 16+zlib.MAX_WBITS) # decompress data
 
         # here self.pageBytes are ready for decoding
@@ -164,13 +167,11 @@ class MyHTMLParser(HTMLParser):
 
     def parse(self, data, prefix):
         self.init(prefix)
-        self.feed(data)        
-##        for link, content in self.dict.items():
-##            if link != None and len(link) > 0 and content != None and len(content) > 0:
-##                print(link, content)
-##        print('result', self.dict)
+        self.feed(data)
 
     def matchKey(self, content, keyObj):
+        if keyObj == None:
+            return True
         for key in keyObj:
             if content.find(key) != -1:
                 return True
@@ -183,7 +184,11 @@ class MyHTMLParser(HTMLParser):
                     obj = (link, content, level, quit)
                     #queue.put(obj)
                     queueArray.insert(host, obj)
-                    print('enqueue: ', obj)
+                    try:
+                        print('enqueue: ', obj)
+                    except UnicodeEncodeError:
+                        log.log.log(5, 'exotic character')
+
     def record(self):
         db.createDB()
         for link, content in self.dict.items():            
@@ -191,16 +196,3 @@ class MyHTMLParser(HTMLParser):
                 print(link, content)
                 db.recordLink(link, content)
         db.printDB()
-seedUrl = 'http://tags.finance.sina.com.cn/公积金信息披露'
-def test1():
-    p = page()
-    file = p.pageLoader(seedUrl)
-    print(file)
-    if file != None:
-        parser = MyHTMLParser()
-        parser.parse(file, p.info.scheme + '://' + p.info.netloc)
-        #parser.record();
-
-#test1()
-#test1()
-
