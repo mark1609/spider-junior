@@ -38,12 +38,13 @@ class queArray():
             if que.empty() != True:
                 obj = que.get()
                 try:
-                    print('get obj from que:', t, obj)
+                    msg = 'get obj from que: ' + str(t)
+                    log.log.logResObj(4, msg, obj)
                 except UnicodeEncodeError:
-                    print('++++++++++++++++++++++++++++++++++++++++++++++++jap character')
+                    log.log.log(5, 'exotic character')
                 break
         if obj == None:
-            print('res empty')
+            log.log.log(2, 'res empty')
         return obj
 
 class task():
@@ -57,6 +58,11 @@ class task():
         self.keyQue = Queue()
         self.taskQue = Queue()
         self.resQueArray = queArray()
+
+    def setInitTask(self):
+        taskObj = (self.seedUrl, 0)
+        log.log.logTaskObj(4, 'set init task: ', taskObj)
+        self.taskQue.put(taskObj)
 
     def distributeKey(self, keyObj):
         log.log.log(1, 'distributing key to all threads')
@@ -72,32 +78,34 @@ class task():
 
     def recordLink(self, link, content, db):
         try:
-            print('main thread record link:', link, content)
+            log.log.logRecordLink(4, 'main thread record link:', link, content)
             db.recordLink(link, content)
         except UnicodeEncodeError:
             log.log.log(5, 'encode issue')
 
     def subTask(self):
-        i = threading.get_ident()
         log.log.log(1, 'sub thread start')
 
         keyObj = self.keyQue.get()
-        print(keyObj)
+        log.log.logKeyObj(1, 'recv keys', keyObj)
+
         fltr = filter()
         quit = False
         while quit != True:
             taskObj = self.taskQue.get()
-            print('recv task', taskObj, 'at thr', i)
+            log.log.logTaskObj(4, 'recv task ', taskObj)
 
             link, level = taskObj
-            if level == -1: # recv quit signal from main thread
-                print('depth achived, notify main task thread qui', i)
-                quit = True # flag for thread termination
+            # recv quit signal from main thread
+            if level == -1:
+                log.log.log(1, 'notify main task thread qui')
+                # flag for thread termination
+                quit = True
                 resObj = (None, None, level, quit)
                 # resQue.put(resObj) # notify main thread
-                self.resQueArray.insertSpecialObj(resObj) # notify main thread
+                self.resQueArray.insertSpecialObj(resObj)
             elif link != None:
-                print('proc task obj here, get page and analysis link')
+                log.log.log(1, 'proc task obj here, get page and analysis link')
                 # prevent simultaneously access leads to anti intrusion behavior by host
                 time.sleep(random.randint(0, self.thrNum+1))
                 p = page()
@@ -116,6 +124,9 @@ class task():
         fltr = filter()
         db.createDB()
         self.resQueArray.create(self.thrNum)
+        thrQuitNum = self.thrNum
+        quit = False
+        resWaitTimeoutRetry = self.maxRetry
 
         # start threads
         log.log.log(1, 'start sub threads')
@@ -123,17 +134,11 @@ class task():
             thr = threading.Thread(target=self.subTask)
             thr.start()
 
-        thrQuitNum = self.thrNum
-        quit = False
-        resWaitTimeoutRetry = self.maxRetry
-
         # send key to all threads
         self.distributeKey(self.keyObj)
 
-        level = 0
-        taskObj = (self.seedUrl, level)
-        print('set init task:', taskObj)
-        self.taskQue.put(taskObj) # send init task
+        # send init task
+        self.setInitTask()
 
         while quit != True:
             resObj = self.resQueArray.getObj()
@@ -142,7 +147,6 @@ class task():
                 link, content, level, thrQuit = resObj
 
                 if level < self.depth  and level != -1 and link != None:
-                    print('main thread proc data, level', level)
                     ignore = False
                     for ignoreSite in self.ignoreSiteList:
                         if link.find(ignoreSite) != -1:
@@ -161,13 +165,14 @@ class task():
                     quit = True
             elif quit != True: # resource queue is empty, and quit flag isn't set
                 if resWaitTimeoutRetry == 0: # wait long enough, trigger all thread to quit
-                    print('kill all thread', thrQuitNum)
+                    log.log.logMsgWithIntValue(2, 'kill all thread', thrQuitNum)
                     self.stopAllThread()
                     time.sleep(1)
                 elif self.taskQue.empty() != True: # still has task undone, maybe all threads are busy, wait 1 sec
                     time.sleep(1)
+                    log.log.log(2, 'still has task undone, just wait a second')
                 else: # all task done, resource is empty, start quit countdown
-                    print('all task done, resource is empty, start quit countdown', resWaitTimeoutRetry)
+                    log.log.logMsgWithIntValue(2, 'all task done, resource is empty, start quit countdown', resWaitTimeoutRetry)
                     resWaitTimeoutRetry = resWaitTimeoutRetry - 1
                     time.sleep(1)
         # end of while, ready to quit main thread

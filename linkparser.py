@@ -27,7 +27,7 @@ class page():
         self.length = 0
 
         if self.info.scheme == 'http':
-            print('---------------open url:', url)
+            log.log.logOpenUrl(4, 'open url:', url)
             #print(type(url),url.encode('gbk'))
             #print(urllib.parse.quote("公积金信息披露",encoding='GBK') )
             d = url.encode('gbk', 'ignore') # procedure below for shitty url like this: "http://tags.news.sina.com.cn/公积金"
@@ -182,10 +182,9 @@ class MyHTMLParser(HTMLParser):
             if link != None and len(link)>0 and content != None and len(content)>0:
                 if fltr.isDataExists(link) != True and self.matchKey(content, keyObj) == True:
                     obj = (link, content, level, quit)
-                    #queue.put(obj)
                     queueArray.insert(host, obj)
                     try:
-                        print('enqueue: ', obj)
+                        log.log.logResObj(4, 'enqueue: ', obj)
                     except UnicodeEncodeError:
                         log.log.log(5, 'exotic character')
 

@@ -2,9 +2,8 @@ import input
 import task
 
 if __name__ == "__main__":
-    argRun = input.arg()
-
     # load parameter from command line
+    argRun = input.arg()
     input.initParam(argRun)
 
     # start main task

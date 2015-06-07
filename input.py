@@ -18,7 +18,7 @@ class arg():
 
 def argParse():
     parser = argparse.ArgumentParser(description='internet spider')
-    parser.add_argument('-l', metavar='loglevel', help='log level', nargs=1, type=int, default=1, choices=range(1, 6))
+    parser.add_argument('-l', metavar='loglevel', help='log level', nargs=1, type=int, default=5, choices=range(1, 6))
     parser.add_argument('-d', metavar='depth', help='depth of spider', nargs=1, type=int, default=2, choices=range(1,))
     parser.add_argument('-thread', metavar='number', help='number of threads', nargs=1, type=int, default=10, choices=range(1,))
     parser.add_argument('-u', metavar='url', help='seed url', nargs=1, type=str, default='http://www.sina.com.cn/')
