@@ -55,6 +55,4 @@ class myLog():
         msg = msg + ' ' + str(value)
         self.log(level, msg)
 
-
-
 log = myLog()

@@ -177,16 +177,20 @@ class MyHTMLParser(HTMLParser):
                 return True
         return False
 
-    def send(self, level, quit, queueArray, keyObj, fltr, host):
+    def send(self, level, quit, queueArray, keyObj, fltr, host, statQue):
+        bulkStat = 0
         for link, content in self.dict.items():
             if link != None and len(link)>0 and content != None and len(content)>0:
                 if fltr.isDataExists(link) != True and self.matchKey(content, keyObj) == True:
                     obj = (link, content, level, quit)
                     queueArray.insert(host, obj)
+                    bulkStat = bulkStat + 1
                     try:
                         log.log.logResObj(4, 'enqueue: ', obj)
                     except UnicodeEncodeError:
                         log.log.log(5, 'exotic character')
+        statObj = (level, bulkStat)
+        statQue.put(statObj)
 
     def record(self):
         db.createDB()

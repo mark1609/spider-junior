@@ -1,5 +1,5 @@
 import sqlite3
-
+import log
 dbName = "linkDB.db"
 dbTabName = "linkInfo"
 
@@ -27,19 +27,22 @@ def fetchRecord(link, content):
             c.execute("select * from linkInfo")
         result = c.fetchall()
         if link is None and content is None:
-            print('fetch record for:', link, content, result)
+            try:
+                print('fetch record for:', link, content, result)
+            except UnicodeEncodeError:
+                log.log.log(5,'exotic character')
         return(result)
-        
+
 def recordLink(link, content):
     if link is None or content is None:
         #print('invalid link or content')
         return
     with sqlite3.connect(dbName) as conn:
         c = conn.cursor()
-        redundant = fetchRecord(link, content)
-        if len(redundant) != 0:
+        #redundant = fetchRecord(link, content)
+        #if len(redundant) != 0:
             #print('redundant record:', link, content)
-            return
+            #return
         info = (link, content)
         c.execute("insert into linkInfo values (?,?)",info)
         #print('add record: ', link, content)

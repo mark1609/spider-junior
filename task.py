@@ -6,6 +6,7 @@ from linkparser import *
 import random
 import db
 import log
+from stat import *
 # format of task obj: (link, level) , level also used as stop signal at value equals -1
 # format of res  obj: (link, content, level, thrQuit)
 # format of key  obj: (key1, key2, ... )
@@ -51,13 +52,15 @@ class task():
     def __init__(self, argRun):
         self.depth = argRun.depth
         self.thrNum = argRun.thrNum
-        self.maxRetry = 10
+        self.maxRetry = 2*self.thrNum
         self.seedUrl = argRun.seedurl
         self.ignoreSiteList = ('safedog',)
         self.keyObj = argRun.key #('Å·ÃÀ','Ï²¾ç','±ù±ù','ÖÜÑ¸')
         self.keyQue = Queue()
         self.taskQue = Queue()
         self.resQueArray = queArray()
+        self.statQue = Queue()
+        self.stat = myStat()
 
     def setInitTask(self):
         taskObj = (self.seedUrl, 0)
@@ -83,6 +86,10 @@ class task():
         except UnicodeEncodeError:
             log.log.log(5, 'encode issue')
 
+    def ntfStatTaskConsumed(self, level):
+        statObj = (level, -1)
+        self.stat.que.put(statObj)
+
     def subTask(self):
         log.log.log(1, 'sub thread start')
 
@@ -105,16 +112,17 @@ class task():
                 # resQue.put(resObj) # notify main thread
                 self.resQueArray.insertSpecialObj(resObj)
             elif link != None:
+                self.ntfStatTaskConsumed(level)
                 log.log.log(1, 'proc task obj here, get page and analysis link')
                 # prevent simultaneously access leads to anti intrusion behavior by host
-                time.sleep(random.randint(0, self.thrNum+1))
+                time.sleep(random.randint(0, int(self.thrNum/2)))
                 p = page()
                 file = p.pageLoader(link)
                 if file != None:
                     host = p.info.netloc
                     parser = MyHTMLParser()
                     parser.parse(file, p.info.scheme + '://' + host)
-                    parser.send(level + 1, quit, self.resQueArray, keyObj, fltr, host)
+                    parser.send(level + 1, quit, self.resQueArray, keyObj, fltr, host, self.stat.que)
         # end of while
         time.sleep(2)
         log.log.log(1, 'sub thread end')
@@ -127,6 +135,9 @@ class task():
         thrQuitNum = self.thrNum
         quit = False
         resWaitTimeoutRetry = self.maxRetry
+
+        self.stat.init(self.depth, 10)
+        self.stat.start()
 
         # start threads
         log.log.log(1, 'start sub threads')
@@ -146,18 +157,24 @@ class task():
                 resWaitTimeoutRetry = self.maxRetry # reset retry times
                 link, content, level, thrQuit = resObj
 
-                if level < self.depth  and level != -1 and link != None:
+                if level <= self.depth  and level != -1 and link != None:
                     ignore = False
                     for ignoreSite in self.ignoreSiteList:
                         if link.find(ignoreSite) != -1:
                             ignore = True
+                            self.ntfStatTaskConsumed(level)
                             print('ignore link:', link, 'match:', ignoreSite)
                             break
                     if ignore != True: # proc resource here
                         if fltr.isDataExists(link) != True:
                             self.recordLink(link, content, db)
-                            taskObj = (link, level)
-                            self.taskQue.put(taskObj)
+                            self.stat.addNodeRecordCnt(level)
+
+                            if level < self.depth:
+                                taskObj = (link, level)
+                                self.taskQue.put(taskObj)
+                        else:
+                            self.ntfStatTaskConsumed(level)
 
                 if thrQuit == True: # a thread quit
                     thrQuitNum = thrQuitNum - 1
@@ -178,6 +195,7 @@ class task():
         # end of while, ready to quit main thread
 
         thr.join()
+        self.stat.stop()
         print('------searchResult------:')
         db.printDB()
         log.log.log(1, 'main task end.')
